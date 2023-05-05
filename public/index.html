@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Timer App</title>
+  <link rel="stylesheet" href="./assets/style.css">
+</head>
+
+<body>
+  <form id="timer-form">
+    <label for="name">Name:</label>
+    <input type="text" id="name" />
+    <label for="duration">Duration (in seconds):</label>
+    <input type="number" id="duration" />
+    <button type="submit">Create Timer</button>
+  </form>
+  <div id="timers"></div>
+</body>
+
+</html>
+
+<script>
+
+  const form = document.querySelector('#timer-form');
+  const nameInput = document.querySelector('#name');
+  const durationInput = document.querySelector('#duration');
+  const timersContainer = document.querySelector('#timers');
+
+  // Create new timer
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+
+    const name = nameInput.value;
+    const duration = parseInt(durationInput.value);
+
+    // Send POST request to create new timer on server
+    fetch('/api/timers', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name,
+        duration
+      })
+    })
+      .then(response => response.json())
+      .then(timer => {
+        const timerElement = document.createElement('div');
+        timerElement.classList.add('timer');
+        timerElement.dataset.timerId = timer.id;
+        timerElement.innerHTML = `<h2>${timer.name}</h2><p><span class="remaining-time">${timer.duration}</span></p>`;
+        timersContainer.appendChild(timerElement);
+
+        startTimer(timer);
+      })
+      .catch(error => console.error(error));
+
+    nameInput.value = '';
+    durationInput.value = '';
+  });
+
+  // Update timer on countdown
+  function startTimer(timer) {
+    const startTime = Date.now();
+    const endTime = startTime + timer.duration * 1000;
+    const timerElement = document.querySelector(`[data-timer-id="${timer.id}"] .remaining-time`);
+
+    function updateTimer() {
+      const remainingTime = Math.round((endTime - Date.now()) / 1000);
+      if (remainingTime > 0) {
+        timerElement.textContent = remainingTime + "s left";
+        setTimeout(updateTimer, 1000);
+      } else {
+        timerElement.textContent = 'Expired';
+        timerElement.closest('.timer').classList.add('expired');
+      }
+    }
+    updateTimer();
+  }
+
+  // Load existing timers on page load
+  fetch('/api/timers')
+    .then(response => response.json())
+    .then(timers => {
+      timers.forEach(timer => {
+        const timerElement = document.createElement('div');
+        timerElement.classList.add('timer');
+        timerElement.dataset.timerId = timer.id;
+        timerElement.innerHTML = `<h2>${timer.name}</h2><p><span class="remaining-time">${timer.duration}</span> </p>`;
+        timersContainer.appendChild(timerElement);
+
+        startTimer(timer);
+      });
+    })
+    .catch(error => console.log(error));
+</script>
